@@ -3,19 +3,31 @@
 # Vrcert
 # Realiza a verificação dos certificados prestes a vencer.
 # A validação ocorre por meio de monitoramento via Zabbix
-# Versão 4
-#	Dilan, 27 Dez   de 2021
+# Versão 5
+#	Dilan, 22 Dez   de 2021
+		######Verificação de integridade######
+if grep  "today.mac" /etc/zabbix/zabbix_agent2.conf >> /dev/null
+	then echo
+else echo "UserParameter=today.mac,date --iso-8601|awk -F \"-\" '{print \$1\$2\$3}'" >> /etc/zabbix/zabbix_agent2.conf
 
+fi;
+
+if grep  "seven.days.ago" /etc/zabbix/zabbix_agent2.conf >> /dev/null
+	then echo
+else echo "UserParameter=seven.days.ago,date -d \"7days ago\" --iso-8601|awk -F \"-\" '{print \$1\$2\$3}'" >> /etc/zabbix/zabbix_agent2.conf
+
+fi;
 
 		##########Suporte as opções###########
 
 MENSAGEM_USO="
-Uso:$(basename "$0") [ -h | -V | -d | -l ]
--h ou --help  Os scripts de dominios são armazenados na pasta /usr/local/sbin/vrcert/dominios, suas saídas positivas ou negativas em /var/vrcert.log
--V ou --version Mostra a versão do programa e sai
+Uso:$(basename "$0") [ -h | -V | -d | -l | -x ]
+
+-h ou --help  Lista as opções de linha de comando
+-V ou --version Mostra a versão do programa
 -d ou --domain Modifica a var '$pag'
 -l ou --list Adiciona items baseados em uma lista ao arquivo /etc/zabbix/zabbix-agent2.conf 
--x ou --import cria o arquivo .xml com nome do template "Template vrcert" baseado nos itens cadastrados no arquivo de configuração do zabbix-agent2
+-x ou --xml para criar um arquivo xml baseado nos itens criados no arquivo /etc/zabbix/zabbix-agent2.conf 
 "
 		#Tratamento das opções de linha de comando
 
@@ -46,9 +58,7 @@ case "$1" in
 
 	-l | --list)
 		#Modifica Variável $CAMINHO
-		echo "As urls  devem estar separadas por espaços Ex:\"www.google.com www.facebook.com\""
-		echo -n "Digite o caminho do arquivo completo Ex:\"/tmp/your_file\":"
-
+		awk 'BEGIN {print "As Urls da lista devem estar separadas por tabulação/espaço ou em formato de coluna!\nExemplo:\n\twww.google.com\n\twww.facebook.com\nDigite o caminho do arquivo completo Ex:\"/tmp/your_file\":"}'
 		read CAMINHO
 
 		ARRAYLIST=(`cat $CAMINHO`)
@@ -58,7 +68,7 @@ case "$1" in
 
 		do
 
-		echo -e "UserParameter=$FILE,echo | openssl s_client -connect $FILE:443 2>/dev/null | openssl x509 -noout -dates |tail -n1|  sed -e '/notAfter=/s/notAfter=//g' | sed 's/GMT$//'| awk '{print \"date --iso-8601 --date\", \"\\\"\"\$0\"\\\"\"}' | bash | awk -F\"-\" '{print \$1\$2\$3}'" >> TESTE.TXT
+		echo -e "UserParameter=$FILE.d,echo | openssl s_client -connect $FILE:443 2>/dev/null | openssl x509 -noout -dates |tail -n1|  sed -e '/notAfter=/s/notAfter=//g' | sed 's/GMT$//'| awk '{print \"date --iso-8601 --date\", \"\\\"\"\$0\"\\\"\"}' | bash | awk -F\"-\" '{print \$1\$2\$3}'" >> /etc/zabbix/zabbix_agent2.conf
 		done ;
 
 		systemctl restart zabbix-agent2.service
@@ -98,4 +108,4 @@ exit 0
 	;;
 
 esac
-echo "Utilize a opção -d para um novo dominio"
+echo "Utilize a opção -h ou --help par obter ajuda!"
