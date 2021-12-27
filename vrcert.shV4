@@ -1,0 +1,100 @@
+#!/bin/bash
+#
+# Vrcert
+# Realiza a verificação dos certificados prestes a vencer.
+# A validação ocorre por meio de monitoramento via Zabbix
+# Versão 4
+#	Dilan, 27 Dez   de 2021
+
+
+		##########Suporte as opções###########
+
+MENSAGEM_USO="
+Uso:$(basename "$0") [ -h | -V | -d | -l ]
+-h ou --help  Os scripts de dominios são armazenados na pasta /usr/local/sbin/vrcert/dominios, suas saídas positivas ou negativas em /var/vrcert.log
+-V ou --version Mostra a versão do programa e sai
+-d ou --domain Modifica a var '$pag'
+-l ou --list Adiciona items baseados em uma lista ao arquivo /etc/zabbix/zabbix-agent2.conf 
+"
+		#Tratamento das opções de linha de comando
+
+case "$1" in
+
+	-h | --help)
+		echo "$MENSAGEM_USO"
+		exit 0
+	;;
+
+	-V | --version)
+		#Extrai a versão diretamente dos cabeçalhos do programa!
+
+		echo  -n $(basename "$0")
+		grep '^# Versão' "$0" | tail -1 | cut -d: -f1 | tr -d \#
+		exit 0
+	;;
+
+	-d | --domain)
+		#Modifica Variável $pag
+		echo -n "Digite um novo dominio:"
+
+		read pag && echo | openssl s_client -connect google.com:443 2>/dev/null | openssl x509 -noout -dates |tail -n1|  sed -e '/notAfter=/s/notAfter=//g' | sed 's/GMT$//' | awk '{print "date --iso-8601 --date", "\""$0"\""}' | bash | awk -F"-" '{print $1$2$3}'
+		echo -e "UserParameter=$pag.d,echo | openssl s_client -connect $pag:443 2>/dev/null | openssl x509 -noout -dates |tail -n1|  sed -e '/notAfter=/s/notAfter=//g' | sed 's/GMT$//'| awk '{print \"date --iso-8601 --date\", \"\\\"\"\$0\"\\\"\"}' | bash | awk -F\"-\" '{print \$1\$2\$3}'" >> /etc/zabbix/zabbix_agent2.conf 
+		systemctl restart zabbix-agent2.service
+		exit 0
+	;;
+
+	-l | --list)
+		#Modifica Variável $CAMINHO
+		echo "As urls  devem estar separadas por espaços Ex:\"www.google.com www.facebook.com\""
+		echo -n "Digite o caminho do arquivo completo Ex:\"/tmp/your_file\":"
+
+		read CAMINHO
+
+		ARRAYLIST=(`cat $CAMINHO`)
+
+
+		for FILE in "${ARRAYLIST[@]}"
+
+		do
+
+		echo -e "UserParameter=$FILE,echo | openssl s_client -connect $FILE:443 2>/dev/null | openssl x509 -noout -dates |tail -n1|  sed -e '/notAfter=/s/notAfter=//g' | sed 's/GMT$//'| awk '{print \"date --iso-8601 --date\", \"\\\"\"\$0\"\\\"\"}' | bash | awk -F\"-\" '{print \$1\$2\$3}'" >> TESTE.TXT
+		done ;
+
+		systemctl restart zabbix-agent2.service
+		exit 0
+	;;
+
+	-x | --import)
+echo -n "Digite um nome para o arquivo de importação, será acresentado \".xml\" ao final do arquivo: "
+read template 
+
+ARRAY=(`echo -n $(awk -F"=" '/UserParameter=.*\.d.*GMT/{print $2}' /etc/zabbix/zabbix_agent2.conf | sed  's/,.*//') | awk '//'`)
+awk 'BEGIN {print "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<zabbix_export>\n\t\t<version>5.0</version>\n\t\t  <date>2021-12-15T20:56:18Z</date>\n\t\t\t<groups>\n\t\t\t\t<group>\n\t\t\t\t\t<name>Template vrcert</name>\n\t\t\t\t\t\t</group>\n\t\t\t\t\t\t\t</groups>\n\t\t\t\t\t\t\t\t<templates>"}' >> $template.xml
+
+echo "  <template><template>Template vrcert</template><name>Template vrcert </name><groups><group><name>Template vrcert</name></group></groups><applications><application><name></name></application></applications><items>" >> $template.xml
+
+for i in "${ARRAY[@]}" 
+
+ do
+
+echo "<item><name>$i</name><type>ZABBIX_ACTIVE</type><key>$i</key><applications><application><name></name></application></applications><triggers><trigger><expression>last(/Template vrcert/$i)=last(/Template vrcert/today.mac)</expression><name>Vencimento hoje do certificado ($i)</name><priority>HIGH</priority></trigger></triggers></item>" >> $template.xml
+
+done
+awk 'BEGIN {print "</items></template>\n</templates></zabbix_export>"}' >> $template.xml
+exit 0
+
+	;;
+
+	*)
+
+
+	if test -n "$1"
+		then	echo "Opção Inválida:$1"
+		exit 1
+	fi
+
+
+	;;
+
+esac
+echo "Utilize a opção -d para um novo dominio"
