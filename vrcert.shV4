@@ -15,6 +15,7 @@ Uso:$(basename "$0") [ -h | -V | -d | -l ]
 -V ou --version Mostra a versão do programa e sai
 -d ou --domain Modifica a var '$pag'
 -l ou --list Adiciona items baseados em uma lista ao arquivo /etc/zabbix/zabbix-agent2.conf 
+-x ou --import cria o arquivo .xml com nome do template "Template vrcert" baseado nos itens cadastrados no arquivo de configuração do zabbix-agent2
 "
 		#Tratamento das opções de linha de comando
 
