@@ -1,4 +1,4 @@
-# vrcertv2.sh
+# vrcert
 Verificação de certificados expirados, criação de item no Zabbix-agent2, criação de templates.xml para importação no front-end zabbix 5.0 (alterável)
 
 Obs: A criação de arquivos .xml aceita lista, use a opção -h ou --help para ver as opções de linha de comando
